@@ -1,59 +1,33 @@
 scenario_name: "toy_scenario_001"
 
+seed: 0
+
 space:
   width: 100.0
   height: 100.0
+  range: 40.0    # 通信可能距離
 
 sim:
   max_steps: 500
-  time_step: 1.0      # まずは1ステップ=1時間みたいなつもりでOK
+  time_step: 1.0    # シミュレーションの時間ステップ
 
 command_center:
-  id: "O"
   position: [50.0, 50.0]
 
 repair_depot:
-  id: "B1"
   position: [10.0, 10.0]
-  repair_duration: 10   # 修理に要するステップ数（L）
-
-communication:
-  range: 40.0           # 通信可能距離 R
+  repair_duration: 10   # 修理に要するステップ数
 
 failure_model:
-  module: acta.failure_models
-  class: ExpFailureModel
+  module: acta.sim.failure_models
+  class: SimpleFailureModel
   params:
     lambd: 0.01   # 故障率 λ
-    eta: 0.2      # 故障後の効率低下係数 η
 
-workers:
-  - id: 1
-    position: [0.0, 0.0]
-    speed: 1.0          # u
-    service_rate: 1.0   # v
-    initial_state: "healthy"
-    initial_H: 0.0
-  - id: 2
-    position: [90.0, 10.0]
-    speed: 1.0
-    service_rate: 1.0
-    initial_state: "healthy"
-    initial_H: 0.0
+task_selection:
+  module: acta.sim.task_selection
+  class: NearestIncompleteTaskSelector
+  params: {}
 
-tasks:
-  - id: 1
-    position: [20.0, 80.0]
-    required_work: 10.0
-    remaining_work: 10.0  # t=0時点の残り作業量
-    status: "pending"     # pending / in_progress / done
-  - id: 2
-    position: [70.0, 70.0]
-    required_work: 8.0
-    remaining_work: 8.0
-    status: "pending"
-  - id: 3
-    position: [60.0, 20.0]
-    required_work: 5.0
-    remaining_work: 5.0
-    status: "pending"
+workers_csv: "toy_workers.csv"
+tasks_csv:   "toy_tasks.csv"

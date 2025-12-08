@@ -10,24 +10,18 @@ class FailureModel(Protocol):
 
     eta: float
 
-    def failure_prob(self, H_before: float, delta_H: float) -> float:
+    def failure_prob(self, H: float) -> float:
         """
-        このステップで増えた稼働時間 delta_H に対する故障確率を返す。
-
-        H_before : ステップ開始時点の累積稼働時間
-        delta_H  : ステップ中に増えた稼働時間
+        疲労度H に対する故障確率を返す。
         """
         ...
 
 
 @dataclass
-class ExpFailureModel:
-    """p_fail = 1 - exp(-lambda * delta_H) 型の故障モデル."""
+class SimpleFailureModel:
+    """常に同じ確率で故障するシンプルなモデル."""
 
-    lambd: float
-    eta: float
+    prob: float
 
-    def failure_prob(self, H_before: float, delta_H: float) -> float:
-        if delta_H <= 0 or self.lambd <= 0:
-            return 0.0
-        return 1.0 - math.exp(-self.lambd * delta_H)
+    def failure_prob(self, H: float) -> float:
+        return self.prob
