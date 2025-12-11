@@ -25,10 +25,21 @@ failure_model:
     lambd: 0.01   # 故障率 λ
     k: 1.5        # 形状パラメータ k
 
+# task_selection:
+#   module: acta.sim.task_selection
+#   class: NearestIncompleteTaskSelector
+#   params: {}
+
 task_selection:
   module: acta.sim.task_selection
-  class: NearestIncompleteTaskSelector
-  params: {}
+  class: GABasedTaskSelector
+  params:
+    interval: 100
+    pop_size: 50
+    generations: 100
+    seed: 123
+    L_max: 10
+    seed: 0
 
 workers_csv: "toy_workers.csv"
 tasks_csv:   "toy_tasks.csv"

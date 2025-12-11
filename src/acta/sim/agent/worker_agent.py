@@ -6,7 +6,7 @@ from mesa import Agent
 if TYPE_CHECKING:
     from acta.sim.agent.task_agent import TaskAgent
     from acta.sim.model import ACTAScenarioModel
-from acta.sim.info_state import InfoState
+from acta.sim.info_state import InfoState, WorkerInfo, TaskInfo
 from acta.utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
@@ -58,6 +58,54 @@ class WorkerAgent(Agent):
     # ------------------------------------------------------------------
     # 情報同期
     # ------------------------------------------------------------------
+    def _update_self_worker_info(self) -> None:
+        """現在の実座標・状態から自分自身の WorkerInfo を info_state に反映."""
+        x, y = self.pos
+        wid = self.worker_id
+
+        my_info = WorkerInfo(
+            worker_id=wid,
+            position=(x, y),
+            state=self.state,
+            H=self.H,
+            timestamp=self.model.steps,  # タイムスタンプはモデルのステップを想定
+        )
+        # 自分の info_state を最新化
+        self.info_state.workers[wid] = my_info
+
+        # もし _next_info_state が既に存在していれば、そちらにも同じものを書いておく
+        if self._next_info_state is not None:
+            self._next_info_state.workers[wid] = my_info
+
+    def _update_local_task_info(self, task: "TaskAgent") -> None:
+        """
+        自分が直接観測・更新した task の情報を info_state と _next_info_state に反映する。
+        """
+        # _next_info_state がまだ無い場合は、現在の info_state からコピーして作る
+        if self._next_info_state is None:
+            self._next_info_state = InfoState(
+                workers=dict(self.info_state.workers),
+                tasks=dict(self.info_state.tasks),
+            )
+
+        tid = task.task_id
+        tx, ty = task.pos
+
+        t_info = TaskInfo(
+            task_id=tid,
+            position=(tx, ty),
+            status=task.status,
+            total_work=task.total_work,
+            remaining_work=task.remaining_work,
+            timestamp=self.model.steps,
+        )
+
+        # 自分が持つローカル情報も即時更新（自分だけは真の状態を知っている）
+        self.info_state.tasks[tid] = t_info
+
+        # 次ステップに向けて共有するバッファにも反映
+        self._next_info_state.tasks[tid] = t_info
+
     def prepare_communicate(self) -> None:
         """
         近隣ワーカー・Commander からの情報をマージして _next_info_state に保持する。
@@ -91,12 +139,15 @@ class WorkerAgent(Agent):
         self.info_state = self._next_info_state
         self._next_info_state = None
 
+        self._update_self_worker_info()
+
      # ------------------------------------------------------------------
     # ヘルパー
     # ------------------------------------------------------------------
     def _update_failure(self) -> None:
         """ターン開始時の H, delta_H に基づいて故障判定."""
         if self.state != "healthy":
+            self.delta_H = 0.0
             return
         p_fail = self.model.failure_model.failure_prob(self.H, self.delta_H)
         self.delta_H = 0.0  # 故障判定後にリセット
@@ -179,13 +230,12 @@ class WorkerAgent(Agent):
     # ステップの挙動
     # ------------------------------------------------------------------
     def step(self) -> None:
-        if self.model.all_tasks_done():
-            return
-
         dt = self.model.time_step
 
         # 故障判定
         self._update_failure()
+        if self.model.all_tasks_done():
+            return
 
         if self.mode == "repairing":
             self._repair(dt)
@@ -235,8 +285,7 @@ class WorkerAgent(Agent):
     # -------------------------------
     def _step_work(self, dt: float) -> None:
         if self.target_task is None:
-            logger.error(f"Worker {self.worker_id} has no target task")
-            raise RuntimeError("Worker has no target task")
+            return
 
         current_speed = self._current_speed()
         current_throughput = self._current_throughput()
@@ -261,3 +310,5 @@ class WorkerAgent(Agent):
         # 作業分の疲労
         self.H += self.fatigue_work * remaining_dt
         self.delta_H += self.fatigue_work * remaining_dt
+
+        self._update_local_task_info(self.target_task)

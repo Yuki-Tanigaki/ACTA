@@ -19,9 +19,8 @@ class TaskSelector(Protocol):
         ...
 
 
-class NearestIncompleteTaskSelector:
+class NearestIncompleteTaskSelector(TaskSelector):
     """
-    とりあえず版:
     - 各ワーカーについて
       - まだ終わっていないタスクの中から
       - 「現在位置から最も近いタスク」を 1 つ選ぶ
@@ -54,3 +53,4 @@ class NearestIncompleteTaskSelector:
             )
             w.target_task = best_t
             w.mode = "work"
+
