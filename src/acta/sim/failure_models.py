@@ -10,16 +10,25 @@ class FailureModel(Protocol):
 
     eta: float
 
-    def failure_prob(self, H: float, delta_H: float) -> float:
+    def failure_prob(self, H: float) -> float:
         """
-        疲労度H に対する故障確率を返す。
+        累積疲労度 に対する故障確率を返す。
 
         Parameters
         ----------
         H : float
-            現在の疲労度
+            累積疲労度
+        """
+        ...
+
+    def failure_prob_step(self, H: float, delta_H: float) -> float:
+        """
+        このステップで増加した疲労度 に対する故障確率を返す。
+
+        Parameters
+        ----------
         delta_H : float
-            このステップで増加する疲労度
+            このステップで増加した疲労度
         """
         ...
 
@@ -30,7 +39,10 @@ class SimpleFailureModel:
 
     prob: float
 
-    def failure_prob(self, H: float, delta_H: float) -> float:
+    def failure_prob(self, H: float) -> float:
+        return 1.0 - math.exp(H * math.log(1.0 - self.prob))
+    
+    def failure_prob_step(self, H: float, delta_H: float) -> float:
         return self.prob
     
 @dataclass
@@ -38,7 +50,13 @@ class WeibullFailureModel:
     lambd: float  # スケール
     k: float      # 形状 (k>1 で wear-out)
 
-    def failure_prob(self, H: float, delta_H: float) -> float:
+    def failure_prob(self, H: float) -> float:
+        """Weibull の累積故障確率 F(H)=1-exp(-(λH)^k)."""
+        if H <= 0 or self.lambd <= 0 or self.k <= 0:
+            return 0.0
+        return 1.0 - math.exp(- (self.lambd * H) ** self.k)
+    
+    def failure_prob_step(self, H: float, delta_H: float) -> float:
         if delta_H <= 0 or self.lambd <= 0 or self.k <= 0:
             return 0.0
 

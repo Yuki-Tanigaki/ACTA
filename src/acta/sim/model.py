@@ -103,7 +103,6 @@ class ACTAScenarioModel(Model):
         workers = list(self.workers.values())
         # 全 worker について _next_info_state を計算
         for w in workers:
-            print(w.worker_id, w.H, w.delta_H, self.failure_model.failure_prob(w.H, w.delta_H))
             w.prepare_communicate()
         
         self.command_center.communicate()

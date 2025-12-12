@@ -47,7 +47,7 @@ class WorkerAgent(Agent):
         self.target_task: Optional[TaskAgent] = None
 
         # 修理関連の状態
-        self.mode: Literal["work", "go_repair", "repairing"] = "work"
+        self.mode: Literal["work", "go_repair", "repairing", "idle"] = "idle"
         self.repair_time_left: float = 0.0   # 残り修理時間
 
         # ワーカー自身の情報状態
@@ -149,7 +149,7 @@ class WorkerAgent(Agent):
         if self.state != "healthy":
             self.delta_H = 0.0
             return
-        p_fail = self.model.failure_model.failure_prob(self.H, self.delta_H)
+        p_fail = self.model.failure_model.failure_prob_step(self.H, self.delta_H)
         self.delta_H = 0.0  # 故障判定後にリセット
         if self.random.random() < p_fail:
             self.state = "failed"

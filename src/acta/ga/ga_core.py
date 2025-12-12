@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import random
 from typing import List, Callable, Optional
 
+from acta.ga.crossover import crossover
+from acta.ga.mutation import mutate
 from acta.ga.representation import Individual
 from acta.ga.initialization import random_population
 
@@ -17,6 +20,7 @@ class SimpleGA:
         L_max: int,
         pop_size: int,
         generations: int,
+        elitism_rate: float,
         evaluate: EvaluateFunc,
         tournament_size: int = 2,
         mutation_rate: float = 0.1,
@@ -28,10 +32,12 @@ class SimpleGA:
 
         self.pop_size = pop_size
         self.generations = generations
-
+        self.elitism_rate = elitism_rate
         self.evaluate = evaluate
+
         self.tournament_size = tournament_size
         self.mutation_rate = mutation_rate
+
 
         self.rng = random.Random(seed)
 
@@ -42,11 +48,14 @@ class SimpleGA:
     # 初期化
     # -------------------------
     def initialize(self):
+        repair_prob = 1.0/self.L_max  # 修理確率
         self.population = random_population(
             population_size=self.pop_size,
             num_workers=self.num_workers,
             num_tasks=self.num_tasks,
             L_max=self.L_max,
+            rng=self.rng,
+            repair_prob=repair_prob,
         )
         for ind in self.population:
             ind.objectives = self.evaluate(ind)
@@ -54,25 +63,9 @@ class SimpleGA:
     # -------------------------
     # 親選択
     # -------------------------
-    def tournament_select(self) -> List[Individual]:
-        selected: List[Individual] = []
-        for _ in range(self.pop_size):
-            comps = self.rng.sample(self.population, self.tournament_size)
-            best = min(comps, key=lambda ind: ind.objectives[0])
-            selected.append(best)
-        return selected
-
-    # -------------------------
-    # 交叉（stub）
-    # -------------------------
-    def crossover(self, p1: Individual, p2: Individual) -> Individual:
-        return p1.copy()  # 今はstub
-
-    # -------------------------
-    # 突然変異（stub）
-    # -------------------------
-    def mutate(self, ind: Individual):
-        pass
+    def tournament_select(self) -> Individual:
+        comps = self.rng.sample(self.population, self.tournament_size)
+        return min(comps, key=lambda ind: ind.objectives[0] + ind.objectives[1])
 
     # -------------------------
     # GA 実行
@@ -80,21 +73,29 @@ class SimpleGA:
     def run(self) -> Individual:
         self.initialize()
 
+        elite_k = max(1, int(self.pop_size * self.elitism_rate))
+
         for gen in range(self.generations):
-            parents = self.tournament_select()
+            # --- 現世代からエリートを抜き出して保存 ---
+            elites = sorted(self.population, key=lambda ind: ind.objectives[0] + ind.objectives[1])[:elite_k]
+            elites = [deepcopy(e) for e in elites]
 
-            # 交叉と突然変異
+            # --- 次世代個体群の生成 ---
+            need = self.pop_size - elite_k
             offspring: List[Individual] = []
-            for i in range(0, self.pop_size, 2):
-                p1 = parents[i]
-                p2 = parents[(i + 1) % self.pop_size]
+            for i in range(need):
+                p1 = self.tournament_select()
+                p2 = self.tournament_select()
 
-                child = self.crossover(p1, p2)
-                self.mutate(child)
+                child = crossover(p1, p2, self.rng)
+                mutate(child, self.rng, self.mutation_rate)
                 child.objectives = self.evaluate(child)
                 offspring.append(child)
+                # print(child.routes, child.repairs, child.objectives)
 
-            self.population = offspring
+            self.population = elites + offspring
+            best = min(self.population, key=lambda ind: ind.objectives[0] + ind.objectives[1])
+            # print(gen, best.routes, best.repairs, best.objectives)
 
-        self.best = min(self.population, key=lambda ind: ind.objectives[0])
+        self.best = min(self.population, key=lambda ind: ind.objectives[0] + ind.objectives[1])
         return self.best

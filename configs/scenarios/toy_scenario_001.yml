@@ -15,7 +15,7 @@ command_center:
   position: [50.0, 50.0]
 
 repair_depot:
-  position: [10.0, 10.0]
+  position: [50.0, 50.0]
   repair_duration: 10   # 修理に要するステップ数
 
 failure_model:
@@ -34,12 +34,13 @@ task_selection:
   module: acta.sim.task_selection
   class: GABasedTaskSelector
   params:
-    interval: 100
-    pop_size: 50
-    generations: 100
+    interval: 500
+    pop_size: 10
+    generations: 1000
+    elitism_rate: 0.1
     seed: 123
-    L_max: 10
-    seed: 0
+    L_max: 5
+    seed: 1234
 
 workers_csv: "toy_workers.csv"
 tasks_csv:   "toy_tasks.csv"

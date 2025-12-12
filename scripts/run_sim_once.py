@@ -32,6 +32,7 @@ def main():
         model.step()
 
     makespan = model.get_makespan()
+    print(makespan)
     logger.info(f"[INFO] Finished at steps={model.steps}, makespan={makespan:.2f}")
 
     for wid, w in model.workers.items():
